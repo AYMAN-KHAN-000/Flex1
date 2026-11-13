@@ -1,3 +1,5 @@
+<!-- IMAGE 1: Main FLEX application screenshot -->
+![FLEX 1](https://i.postimg.cc/G3788wGW/15.png)
 # FLEX
 
 ### Your Personal AI Desktop Assistant.
@@ -24,8 +26,7 @@ FLEX is currently under active development. Follow the releases page for new ver
 
 ## Preview
 
-<!-- IMAGE 1: Main FLEX application screenshot -->
-![FLEX 1](https://i.postimg.cc/G3788wGW/15.png)
+
 
 <!-- IMAGE 2: FLEX Notch screenshot -->
 ![FLEX Notch](https://i.postimg.cc/G3788wv0/16.png)
