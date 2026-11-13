@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -44,6 +45,7 @@ jobs:
         run: |
           $browserPath = Join-Path $env:GITHUB_WORKSPACE 'build\playwright-browsers'
           New-Item -ItemType Directory -Force -Path $browserPath | Out-Null
+          $env:PLAYWRIGHT_BROWSERS_PATH = $browserPath
           "PLAYWRIGHT_BROWSERS_PATH=$browserPath" >> $env:GITHUB_ENV
           python -m playwright install chromium --no-shell
 
