@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+.pytest_cache/
+venv/
+.venv/
+.DS_Store
+build/
+dist/
+logs/*.log
+data/*.db
+data/discord_authorized_users.json
+data/discord_authorized_users.json.tmp

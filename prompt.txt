@@ -1,0 +1,1145 @@
+You are the lead software architect and senior Python engineer responsible for building a powerful desktop AI agent called **FLEX**.
+
+## 1. PROJECT VISION
+
+Build FLEX as a JARVIS-like desktop AI agent for Windows.
+
+FLEX should be able to understand natural-language commands from the user and actually perform tasks on the computer rather than merely explaining how to perform them.
+
+Examples:
+
+* "Open Chrome."
+* "Open VS Code."
+* "Find the Downloads folder."
+* "Create a folder called Projects on my desktop."
+* "Open this website."
+* "Search YouTube for Blender tutorials."
+* "Type this message."
+* "Take a screenshot."
+* "Open Notepad and write this."
+* "Close Chrome."
+* "Increase the volume."
+* "Find this file."
+* "Move this file to another folder."
+* "Open PowerShell and run a safe command."
+* "Go to GitHub and open my repository."
+* "Look at what is currently on my screen."
+* "Do this sequence of tasks..."
+* "If something fails, figure out why and try another method."
+
+FLEX should be an actual computer-use agent.
+
+The AI model is the BRAIN.
+FLEX is the AGENT/OPERATING LAYER.
+Tools are the HANDS.
+Screenshots, UI Automation and browser inspection are the EYES.
+Memory is the CONTEXT.
+The security/permission system is the SAFETY LAYER.
+
+Do NOT build FLEX as a chatbot that only responds with instructions.
+
+---
+
+# 2. CORE ARCHITECTURE
+
+Use this architecture:
+
+USER
+↓
+FLEX UI
+↓
+TEXT / VOICE INPUT
+↓
+AGENT ORCHESTRATOR
+↓
+LLM PROVIDER
+↓
+STRUCTURED TOOL CALL
+↓
+SECURITY / PERMISSION LAYER
+↓
+TOOL EXECUTION
+↓
+WINDOWS / BROWSER / FILESYSTEM / TERMINAL
+↓
+OBSERVATION
+↓
+VERIFICATION
+↓
+AGENT ORCHESTRATOR
+↓
+NEXT ACTION OR FINAL RESPONSE
+
+The LLM must NEVER directly execute operating-system commands.
+
+The LLM should request actions through structured tools.
+
+FLEX validates every requested tool call before execution.
+
+---
+
+# 3. TECHNOLOGY STACK
+
+Use Python 3.13+.
+
+Primary technologies:
+
+* Python
+* PySide6 for the desktop UI
+* OpenRouter API for the runtime AI model
+* Playwright for browser automation
+* Windows UI Automation where possible
+* PyAutoGUI as a fallback for mouse/keyboard automation
+* MSS and/or Pillow for screenshots
+* subprocess / PowerShell for controlled terminal operations
+* pathlib for filesystem operations
+* SQLite for persistent memory/state
+* python-dotenv for environment variables
+* logging for diagnostics
+* Pydantic or equivalent validation for tool schemas
+* pytest for tests
+
+Keep the architecture provider-independent so OpenRouter can later be replaced by another AI provider.
+
+---
+
+# 4. PROJECT STRUCTURE
+
+Create a clean modular project similar to:
+
+FLEX/
+│
+├── main.py
+├── requirements.txt
+├── .env
+├── .env.example
+├── .gitignore
+├── README.md
+│
+├── flex/
+│   ├── **init**.py
+│   │
+│   ├── core/
+│   │   ├── agent.py
+│   │   ├── planner.py
+│   │   ├── executor.py
+│   │   ├── observer.py
+│   │   ├── verifier.py
+│   │   ├── context.py
+│   │   └── state.py
+│   │
+│   ├── ai/
+│   │   ├── provider.py
+│   │   ├── openrouter.py
+│   │   ├── prompts.py
+│   │   └── schemas.py
+│   │
+│   ├── tools/
+│   │   ├── registry.py
+│   │   ├── app_control.py
+│   │   ├── window_control.py
+│   │   ├── mouse.py
+│   │   ├── keyboard.py
+│   │   ├── screenshots.py
+│   │   ├── filesystem.py
+│   │   ├── browser.py
+│   │   ├── terminal.py
+│   │   └── system.py
+│   │
+│   ├── security/
+│   │   ├── permissions.py
+│   │   ├── validator.py
+│   │   ├── confirmation.py
+│   │   └── policies.py
+│   │
+│   ├── memory/
+│   │   ├── database.py
+│   │   ├── conversation.py
+│   │   ├── preferences.py
+│   │   └── tasks.py
+│   │
+│   ├── voice/
+│   │   ├── input.py
+│   │   ├── wake_word.py
+│   │   └── output.py
+│   │
+│   └── ui/
+│       ├── main_window.py
+│       ├── chat_view.py
+│       ├── settings.py
+│       └── widgets/
+│
+├── data/
+│   ├── flex.db
+│   ├── config.json
+│   └── permissions.json
+│
+├── logs/
+│
+└── tests/
+├── test_agent.py
+├── test_tools.py
+├── test_security.py
+└── test_ai.py
+
+Do not put the entire project into one giant Python file.
+
+Keep components independent and replaceable.
+
+---
+
+# 5. OPENROUTER AI SYSTEM
+
+Implement an OpenRouter provider.
+
+The API key must come from:
+
+.env
+
+Example:
+
+OPENROUTER_API_KEY=your_key_here
+
+Never hard-code the API key.
+
+Never commit .env to Git.
+
+Provide .env.example.
+
+Create a provider abstraction such as:
+
+AIProvider
+├── OpenRouterProvider
+└── future providers
+
+The agent should communicate with the model using structured messages and tool definitions.
+
+The model should be able to request tools using structured arguments.
+
+Example conceptual tool request:
+
+{
+"tool": "open_application",
+"arguments": {
+"application": "chrome"
+}
+}
+
+Do not rely on the model generating arbitrary Python code.
+
+---
+
+# 6. AGENT LOOP
+
+Implement the core loop:
+
+USER REQUEST
+→ UNDERSTAND
+→ PLAN
+→ TOOL CALL
+→ SECURITY CHECK
+→ EXECUTE
+→ OBSERVE
+→ VERIFY
+→ CONTINUE OR FINISH
+
+For example:
+
+User:
+"Open Chrome and search YouTube for Blender tutorials."
+
+Possible internal sequence:
+
+1. Understand request.
+2. Open Chrome.
+3. Verify Chrome opened.
+4. Navigate to YouTube.
+5. Verify page loaded.
+6. Search for Blender tutorials.
+7. Verify search results.
+8. Tell the user the task is complete.
+
+The agent should NOT simply assume an action worked.
+
+Every important action should have verification where practical.
+
+---
+
+# 7. MULTI-STEP TASKS
+
+FLEX must support multi-step tasks.
+
+Example:
+
+"Open Chrome, search Google for Blender, open the first result, and take a screenshot."
+
+The agent should be able to:
+
+1. Break the task into steps.
+2. Execute one step.
+3. Observe the result.
+4. Decide the next step.
+5. Recover if a step fails.
+6. Finish only after verification.
+
+Do not generate an enormous plan and blindly execute it.
+
+Prefer:
+
+PLAN → ACTION → OBSERVE → NEXT ACTION.
+
+---
+
+# 8. TOOL SYSTEM
+
+Create a centralized Tool Registry.
+
+Every tool should have:
+
+* name
+* description
+* input schema
+* permission level
+* executor
+* verification method
+* timeout
+* error handling
+
+Example:
+
+Tool:
+open_application
+
+Input:
+{
+"application": "chrome"
+}
+
+Permission:
+LOW_RISK
+
+Verification:
+Check whether the process/window exists.
+
+---
+
+# 9. INITIAL TOOLS
+
+Implement these tools first.
+
+## APPLICATION CONTROL
+
+* open_application
+* close_application
+* restart_application
+* find_application
+* list_running_applications
+
+Support common Windows applications.
+
+Do not hard-code the user's username.
+
+Use environment variables, Windows APIs, PATH lookup, known application locations, or configurable application mappings.
+
+---
+
+# 10. WINDOW CONTROL
+
+Implement:
+
+* list_windows
+* get_active_window
+* focus_window
+* minimize_window
+* maximize_window
+* restore_window
+* close_window
+
+Prefer Windows UI Automation/window APIs over coordinate-based automation.
+
+---
+
+# 11. MOUSE CONTROL
+
+Implement:
+
+* move_mouse
+* click
+* double_click
+* right_click
+* scroll
+* drag
+
+Coordinates should be used only when better UI targeting is unavailable.
+
+---
+
+# 12. KEYBOARD CONTROL
+
+Implement:
+
+* type_text
+* press_key
+* hotkey
+* key_down
+* key_up
+
+Do not allow the model to send uncontrolled sequences without going through the tool system.
+
+---
+
+# 13. SCREENSHOT / VISION FOUNDATION
+
+Implement:
+
+* screenshot_full_screen
+* screenshot_window
+* screenshot_region
+
+Return useful metadata about the screenshot.
+
+Design the system so a vision-capable AI model can later inspect screenshots.
+
+Do NOT pretend the model can see the screen if no screenshot has actually been supplied to it.
+
+---
+
+# 14. FILESYSTEM TOOLS
+
+Implement safe filesystem operations:
+
+* list_directory
+* search_files
+* get_file_info
+* create_file
+* create_folder
+* rename_file
+* copy_file
+* move_file
+* delete_file
+
+Important:
+
+Destructive operations such as deleting files must require confirmation unless the user has explicitly enabled an appropriate trusted mode.
+
+Prevent path traversal and validate paths.
+
+Do not allow the model to arbitrarily access sensitive system locations without permission.
+
+---
+
+# 15. BROWSER AUTOMATION
+
+Use Playwright.
+
+Implement tools such as:
+
+* browser_open
+* browser_close
+* browser_navigate
+* browser_back
+* browser_forward
+* browser_refresh
+* browser_get_page_info
+* browser_find_text
+* browser_click
+* browser_type
+* browser_press
+* browser_scroll
+* browser_screenshot
+* browser_extract_text
+
+Prefer DOM/selectors/accessibility information over screen coordinates.
+
+If a browser action fails:
+
+1. inspect the page again
+2. find another suitable element
+3. retry safely
+4. report the failure if recovery is impossible
+
+Do not blindly repeat failed actions forever.
+
+---
+
+# 16. TERMINAL / POWERSHELL
+
+FLEX should eventually be able to use PowerShell and terminal commands.
+
+However:
+
+DO NOT give the LLM unrestricted shell access.
+
+Create a controlled terminal tool.
+
+The terminal tool must:
+
+* validate commands
+* apply security policies
+* have timeouts
+* capture stdout
+* capture stderr
+* capture exit code
+* prevent dangerous commands unless explicitly confirmed
+* prevent hidden/background execution
+* log executed commands
+
+Separate safe/read-only commands from potentially destructive commands.
+
+Examples of generally low-risk operations:
+
+* checking directories
+* reading system information
+* checking processes
+* checking network status
+
+Potentially destructive operations must require confirmation.
+
+---
+
+# 17. SECURITY / PERMISSION SYSTEM
+
+Create permission levels:
+
+READ_ONLY
+LOW_RISK
+MEDIUM_RISK
+HIGH_RISK
+
+Examples:
+
+READ_ONLY:
+
+* screenshot
+* list files
+* inspect windows
+* inspect processes
+
+LOW_RISK:
+
+* open application
+* focus window
+* navigate browser
+* type normal text
+
+MEDIUM_RISK:
+
+* move files
+* rename files
+* install software
+* modify settings
+
+HIGH_RISK:
+
+* delete files
+* shutdown
+* restart
+* system-level changes
+* commands that could cause data loss
+
+High-risk actions require explicit user confirmation.
+
+The model must NEVER be able to bypass the permission system.
+
+Security checks must happen locally before execution.
+
+---
+
+# 18. CONFIRMATION SYSTEM
+
+The UI should display confirmations such as:
+
+"FLEX wants to delete 3 files. Allow?"
+
+Buttons:
+
+ALLOW
+DENY
+
+For sensitive actions, clearly explain what FLEX intends to do.
+
+Do not hide dangerous actions behind vague confirmation messages.
+
+---
+
+# 19. VERIFICATION
+
+FLEX must distinguish between:
+
+ACTION REQUESTED
+ACTION EXECUTED
+ACTION VERIFIED
+
+Never tell the user:
+
+"Done."
+
+unless there is reasonable evidence that the requested action succeeded.
+
+Example:
+
+If FLEX requests:
+
+open_application("chrome")
+
+verify that a Chrome window/process actually appeared.
+
+If it did not:
+
+* report failure
+* attempt safe recovery if appropriate
+* avoid falsely claiming success
+
+---
+
+# 20. ERROR RECOVERY
+
+Create structured errors.
+
+Example:
+
+ToolExecutionError
+PermissionDenied
+TimeoutError
+ApplicationNotFound
+WindowNotFound
+BrowserError
+InvalidToolArguments
+VerificationFailed
+
+The agent should be able to recover from common failures.
+
+Example:
+
+Attempt:
+focus_window("Chrome")
+
+Failure:
+Chrome not found.
+
+Recovery:
+Check whether Chrome is running.
+
+If not:
+Open Chrome.
+
+Then retry focus.
+
+Limit retries to prevent infinite loops.
+
+---
+
+# 21. MEMORY
+
+Implement SQLite-based memory.
+
+Store:
+
+* conversation history
+* user preferences
+* task history
+* useful application information
+* settings
+
+Do not store unnecessary sensitive information.
+
+Allow the user to clear memory.
+
+Separate:
+
+short-term conversation context
+
+from
+
+long-term preferences.
+
+---
+
+# 22. USER INTERFACE
+
+Build a modern desktop UI with PySide6.
+
+The UI should contain:
+
+* FLEX branding
+* chat area
+* user messages
+* FLEX messages
+* input box
+* send button
+* voice button
+* settings
+* task/action status
+* permission confirmation dialogs
+
+The UI should clearly show when FLEX is:
+
+Thinking
+Planning
+Executing
+Verifying
+Waiting for permission
+Completed
+Failed
+
+Do NOT display hidden chain-of-thought.
+
+Instead display concise action summaries.
+
+Example:
+
+"Opening Chrome..."
+"Searching YouTube..."
+"Verifying page..."
+"Task completed."
+
+---
+
+# 23. VOICE
+
+Create the voice architecture but do not allow voice development to block the first working milestone.
+
+Eventually support:
+
+* speech-to-text
+* text-to-speech
+* wake word such as "Hey FLEX"
+
+Keep voice providers modular.
+
+---
+
+# 24. SETTINGS
+
+Create settings for:
+
+* OpenRouter API key configuration
+* model selection
+* voice settings
+* theme
+* permissions
+* confirmation behavior
+* memory
+* trusted applications
+* logging
+* startup behavior
+
+Do not expose API keys in normal chat messages or logs.
+
+---
+
+# 25. LOGGING
+
+Create useful logs.
+
+Log:
+
+* user request
+* selected tool
+* tool arguments after sanitization
+* permission decision
+* execution result
+* verification result
+* errors
+* timing
+
+Never log:
+
+* API keys
+* passwords
+* private tokens
+* sensitive credentials
+
+---
+
+# 26. CONFIGURATION
+
+Avoid hard-coded machine-specific paths.
+
+Use configuration files and environment variables.
+
+The program should work on another Windows computer without editing Python source code.
+
+---
+
+# 27. CODE QUALITY
+
+Follow professional Python practices.
+
+Use:
+
+* type hints
+* docstrings where useful
+* classes where appropriate
+* dataclasses/Pydantic models where appropriate
+* clear naming
+* small functions
+* modular architecture
+* structured exceptions
+* logging
+
+Avoid unnecessary complexity.
+
+Do not create fake placeholder implementations that pretend to work.
+
+If something is not implemented yet, clearly mark it as TODO or implement it properly.
+
+---
+
+# 28. IMPORTANT RESTRICTIONS
+
+NEVER:
+
+* hard-code API keys
+* use eval() for model-generated code
+* use exec() for model-generated code
+* give the LLM unrestricted shell access
+* allow arbitrary filesystem destruction
+* bypass Windows security
+* hide actions from the user
+* pretend a task succeeded without verification
+* create infinite agent loops
+* depend entirely on hard-coded mouse coordinates
+* hard-code the user's Windows username
+* put everything into one giant file
+
+---
+
+# 29. TESTING
+
+Create automated tests for:
+
+* tool registration
+* argument validation
+* permission validation
+* filesystem safety
+* agent loop
+* OpenRouter response parsing
+* error handling
+* verification
+* configuration loading
+
+Also create safe mock tools so the agent can be tested without actually modifying the computer.
+
+---
+
+# 30. DEVELOPMENT PHASES
+
+Do NOT attempt to build every feature simultaneously.
+
+Build incrementally.
+
+## PHASE 1 — FOUNDATION
+
+Implement:
+
+* project structure
+* PySide6 UI
+* chat input/output
+* OpenRouter connection
+* AI provider abstraction
+* tool registry
+* security layer
+* logging
+* configuration
+* basic agent loop
+
+Goal:
+
+User can type a command and FLEX can communicate with the AI.
+
+---
+
+## PHASE 2 — COMPUTER CONTROL
+
+Implement:
+
+* application control
+* window control
+* keyboard
+* mouse
+* screenshots
+* verification
+
+Goal:
+
+FLEX can safely perform basic Windows operations.
+
+---
+
+## PHASE 3 — FILESYSTEM
+
+Implement:
+
+* file search
+* folders
+* files
+* copy
+* move
+* rename
+* controlled deletion
+
+Goal:
+
+FLEX can safely manage files.
+
+---
+
+## PHASE 4 — BROWSER
+
+Implement:
+
+* Playwright
+* navigation
+* clicking
+* typing
+* extraction
+* screenshots
+* browser verification
+
+Goal:
+
+FLEX can perform browser tasks.
+
+---
+
+## PHASE 5 — TERMINAL
+
+Implement:
+
+* controlled PowerShell
+* command validation
+* output parsing
+* timeout
+* permissions
+* confirmation
+
+Goal:
+
+FLEX can safely perform useful terminal operations.
+
+---
+
+## PHASE 6 — MEMORY
+
+Implement:
+
+* SQLite
+* conversation memory
+* preferences
+* task history
+
+---
+
+## PHASE 7 — VOICE
+
+Implement:
+
+* speech-to-text
+* text-to-speech
+* wake word architecture
+
+---
+
+## PHASE 8 — ADVANCED AGENT
+
+Add:
+
+* better planning
+* observation
+* verification
+* retry/recovery
+* browser intelligence
+* vision support
+* long-running tasks
+* task cancellation
+* better context management
+
+---
+
+# 31. FIRST MILESTONE
+
+The first working version should support:
+
+1. Start FLEX.
+2. Show the PySide6 interface.
+3. User types a request.
+4. FLEX sends the request to OpenRouter.
+5. AI decides whether a tool is required.
+6. AI requests a structured tool.
+7. FLEX validates the tool.
+8. FLEX checks permissions.
+9. FLEX asks for confirmation when required.
+10. FLEX executes the tool.
+11. FLEX observes the result.
+12. FLEX verifies success.
+13. FLEX sends the result back to the AI.
+14. AI decides whether another action is required.
+15. FLEX completes the task.
+16. UI displays the result.
+
+The first demonstration should be something like:
+
+User:
+"Open Notepad."
+
+FLEX:
+"Opening Notepad..."
+
+Tool executes.
+
+FLEX verifies Notepad is running.
+
+FLEX:
+"Notepad is open."
+
+Then test:
+
+"Open Chrome and search for Blender."
+
+Then:
+
+"Create a folder called FLEX_TEST on my Desktop."
+
+Then:
+
+"Take a screenshot."
+
+These should work through the actual tool system, not fake responses.
+
+---
+
+# 32. DEVELOPMENT METHOD
+
+You are an AI coding agent, so work directly on the project files.
+
+Before writing large amounts of code:
+
+1. Inspect the existing project.
+2. Determine what already exists.
+3. Create or improve the architecture.
+4. Implement one milestone at a time.
+5. Run the program.
+6. Run tests.
+7. Fix errors.
+8. Continue to the next milestone.
+
+Do not repeatedly rewrite the entire project when a targeted fix is sufficient.
+
+When modifying an existing file, preserve working functionality unless there is a clear reason to change it.
+
+---
+
+# 33. DOCUMENTATION
+
+Create a high-quality README containing:
+
+* What FLEX is
+* Architecture
+* Installation
+* Python version
+* Dependencies
+* OpenRouter configuration
+* .env setup
+* Running FLEX
+* Tool architecture
+* Permission system
+* Security model
+* Project structure
+* Development roadmap
+* Troubleshooting
+
+Also explain how to add a new tool.
+
+Example:
+
+1. Create tool module.
+2. Define schema.
+3. Define permission level.
+4. Register tool.
+5. Add executor.
+6. Add verification.
+7. Add tests.
+
+---
+
+# 34. FUTURE PROVIDER SUPPORT
+
+Although OpenRouter is the first AI provider, design the system so the following can eventually be added:
+
+* OpenAI
+* Anthropic
+* Google
+* local Ollama models
+* other OpenAI-compatible APIs
+
+The agent should not depend directly on OpenRouter-specific code throughout the project.
+
+Use an abstraction such as:
+
+AIProvider
+
+with methods for:
+
+* chat
+* tool calling
+* structured responses
+* optional vision
+* streaming
+
+---
+
+# 35. IMPORTANT DESIGN PRINCIPLE
+
+FLEX should not be built as:
+
+USER → LLM → unrestricted computer
+
+Instead build:
+
+USER
+→ FLEX
+→ LLM
+→ STRUCTURED TOOL CALL
+→ SECURITY
+→ TOOL
+→ OBSERVATION
+→ VERIFICATION
+→ LLM
+→ FLEX
+→ USER
+
+This architecture is mandatory.
+
+The goal is maximum useful computer control while maintaining a strong local permission and validation layer.
+
+---
+
+# 36. FINAL EXPECTATION
+
+Build FLEX as a real, extensible software project rather than a demo.
+
+Prioritize:
+
+1. Reliability
+2. Security
+3. Modularity
+4. Verification
+5. Error recovery
+6. Maintainability
+7. Actual computer control
+8. User experience
+
+Do not rush into advanced features before the foundation is stable.
+
+At every stage, make sure the application actually runs.
+
+If a dependency is required, add it to requirements.txt and document installation.
+
+If a Windows-specific dependency is required, explain why it is needed.
+
+Start with PHASE 1 now.
+
+First inspect the project directory and existing files, then create the architecture and implement the first working milestone.
+
+Do not just give me code in the chat. Work on the actual project files, run the application/tests where possible, and fix errors you encounter.
