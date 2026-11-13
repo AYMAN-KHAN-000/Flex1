@@ -243,6 +243,8 @@ $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
 
 The installer is created at `dist\installer\FLEX-Setup-0.1.0.exe`. Distribute the installer or the entire `dist\FLEX` directory, not `FLEX.exe` by itself. GitHub Actions performs the Windows build and attaches an installer and SHA256 checksum when a supported version tag is pushed.
 
+To retry a failed tag build, run the release workflow from `main` and enter the existing version tag; the workflow validates and checks out that tag before building.
+
 Packaged users enter their OpenRouter key in FLEX Settings; source-development users can configure `.env`. The installer does not contain credentials or personal data. Frozen builds keep application data in `%LOCALAPPDATA%\FLEX` and preferences in the current user's settings store; uninstalling FLEX does not remove this data. Voice input downloads the approximately 500 MB `small.en` model on first use.
 
 ---
