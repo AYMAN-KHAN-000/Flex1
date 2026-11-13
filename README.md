@@ -14,7 +14,7 @@ Built with Python, powered by configurable AI models, and designed around struct
 
 ## Releases
 
-**Latest Version:** `v0.1.0 Beta` *(planned initial release)*
+**Latest Version:** `v0.1.0-beta.1` *(Beta 1)*
 
 FLEX is currently under active development. Follow the releases page for new versions, improvements, and updates.
 
@@ -227,6 +227,23 @@ Start FLEX:
 ```bash
 python main.py
 ```
+
+### Build the Windows installer
+
+The reproducible release build targets 64-bit Windows 10/11 with Python 3.13.15 and Inno Setup 6.7.3. Install the pinned build dependencies, then install Playwright Chromium into the build tree:
+
+```powershell
+python -m pip install -r requirements-build.txt
+$env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $PWD 'build\playwright-browsers'
+python -m playwright install chromium --no-shell
+python -m PyInstaller --clean --noconfirm FLEX.spec
+$iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+& $iscc '/DAppVersion="0.1.0"' '/DVersionInfoVersion="0.1.0.0"' installer\FLEX-Setup.iss
+```
+
+The installer is created at `dist\installer\FLEX-Setup-0.1.0.exe`. Distribute the installer or the entire `dist\FLEX` directory, not `FLEX.exe` by itself. GitHub Actions performs the Windows build and attaches an installer and SHA256 checksum when a supported version tag is pushed.
+
+Packaged users enter their OpenRouter key in FLEX Settings; source-development users can configure `.env`. The installer does not contain credentials or personal data. Frozen builds keep application data in `%LOCALAPPDATA%\FLEX` and preferences in the current user's settings store; uninstalling FLEX does not remove this data. Voice input downloads the approximately 500 MB `small.en` model on first use.
 
 ---
 

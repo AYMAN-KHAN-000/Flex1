@@ -1,0 +1,130 @@
+name: Windows beta and release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13.15"
+          architecture: x64
+
+      - name: Validate version tag
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          if ($tag -notmatch '^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:alpha|beta|rc)\.(0|[1-9]\d*))?$') {
+            throw "Unsupported release tag '$tag'. Use vMAJOR.MINOR.PATCH[-alpha.N|-beta.N|-rc.N]."
+          }
+
+      - name: Install pinned dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-build.txt
+
+      - name: Run tests
+        run: python -m pytest -q
+
+      - name: Install bundled Playwright Chromium
+        shell: pwsh
+        run: |
+          $browserPath = Join-Path $env:GITHUB_WORKSPACE 'build\playwright-browsers'
+          New-Item -ItemType Directory -Force -Path $browserPath | Out-Null
+          "PLAYWRIGHT_BROWSERS_PATH=$browserPath" >> $env:GITHUB_ENV
+          python -m playwright install chromium --no-shell
+
+      - name: Build FLEX onedir application
+        run: python -m PyInstaller --clean --noconfirm FLEX.spec
+
+      - name: Install Inno Setup
+        run: choco install innosetup --version=6.7.3 --yes --no-progress
+
+      - name: Compile installer and checksum
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $version = $tag.Substring(1)
+          $baseVersion = ($version -split '-')[0]
+          $versionInfo = "$baseVersion.0"
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $compiler)) {
+            throw "Inno Setup compiler not found at '$compiler'."
+          }
+
+          & $compiler "/DAppVersion=`"$version`"" "/DVersionInfoVersion=`"$versionInfo`"" 'installer\FLEX-Setup.iss'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Inno Setup compilation failed with exit code $LASTEXITCODE."
+          }
+
+          $installer = "dist\installer\FLEX-Setup-$version.exe"
+          if (-not (Test-Path $installer)) {
+            throw "Expected installer was not created: $installer"
+          }
+
+          $checksum = "$installer.sha256"
+          $hash = (Get-FileHash -Path $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumText = "$hash  $([IO.Path]::GetFileName($installer))$([Environment]::NewLine)"
+          [IO.File]::WriteAllText($checksum, $checksumText, [Text.UTF8Encoding]::new($false))
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $version = $tag.Substring(1)
+          $installer = "dist\installer\FLEX-Setup-$version.exe"
+          $checksum = "$installer.sha256"
+          $existing = gh release list --repo $env:GITHUB_REPOSITORY --limit 100 --json tagName --jq '.[].tagName'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not check existing GitHub releases."
+          }
+          if ($existing -contains $tag) {
+            throw "Release '$tag' already exists; refusing to overwrite it."
+          }
+
+          $title = "FLEX $tag"
+          if ($version -match '^(.+)-(alpha|beta|rc)\.(\d+)$') {
+            $baseVersion = $Matches[1]
+            $channel = $Matches[2]
+            $iteration = $Matches[3]
+            $label = switch ($channel) {
+              'alpha' { 'Alpha' }
+              'beta' { 'Beta' }
+              'rc' { 'Release Candidate' }
+            }
+            $title = "FLEX v$baseVersion $label $iteration"
+          }
+
+          $ghArgs = @('release', 'create', $tag, $installer, $checksum, '--repo', $env:GITHUB_REPOSITORY, '--title', $title)
+          $notesFile = "release-notes\$tag.md"
+          if (Test-Path $notesFile) {
+            $ghArgs += @('--notes-file', $notesFile)
+          } else {
+            $ghArgs += '--generate-notes'
+          }
+
+          if ($version -match '-(alpha|beta|rc)\.') {
+            $ghArgs += '--prerelease'
+          } else {
+            $ghArgs += '--latest'
+          }
+
+          & gh @ghArgs
+          if ($LASTEXITCODE -ne 0) {
+            throw "GitHub release creation failed with exit code $LASTEXITCODE."
+          }

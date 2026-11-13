@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import logging
+import os
 import queue
 import re
+import sys
 import threading
 from concurrent.futures import Future
 from pathlib import Path
@@ -57,6 +59,7 @@ class BrowserManager:
 
     def _worker(self) -> None:
         try:
+            self._configure_bundled_browser_path()
             from playwright.sync_api import sync_playwright
 
             playwright = sync_playwright().start()
@@ -114,6 +117,17 @@ class BrowserManager:
                     )
                 else:
                     future.set_result(self._error("BROWSER_OPERATION_FAILED", "Browser operation failed."))
+
+    @staticmethod
+    def _configure_bundled_browser_path() -> None:
+        if not getattr(sys, "frozen", False):
+            return
+        bundle_root = Path(
+            getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent)
+        )
+        browser_root = bundle_root / "playwright-browsers"
+        if browser_root.is_dir():
+            os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", str(browser_root))
 
     @staticmethod
     def _error(code: str, message: str, *, retryable: bool = False) -> dict[str, Any]:
